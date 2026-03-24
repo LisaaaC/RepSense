@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RepSense AI — Train Smarter. Recover Better. Perform at Your Peak.</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red: #e53935;
+      --red-dim: #b71c1c;
+      --red-glow: rgba(229,57,53,0.25);
+      --bg: #0d0d0d;
+      --bg2: #141414;
+      --bg3: #1a1a1a;
+      --bg4: #222;
+      --border: #2a2a2a;
+      --text: #f0f0f0;
+      --text-dim: #888;
+      --green: #4caf50;
+      --amber: #ff9800;
+      --blue: #2196f3;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── HEADER ── */
+    .header {
+      background: linear-gradient(90deg, #0d0d0d 0%, #1a0a0a 100%);
+      border-bottom: 2px solid var(--red);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .logo-wrap { display: flex; align-items: center; gap: 14px; }
+
+    .logo-icon {
+      width: 44px; height: 44px;
+      background: var(--red);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 18px var(--red-glow);
+    }
+
+    .logo-text {
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .logo-text .red { color: var(--red); }
+
+    .tagline {
+      font-size: 12px;
+      color: var(--text-dim);
+      font-style: italic;
+      margin-top: 1px;
+    }
+
+    .badge {
+      background: var(--red);
+      color: white;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 20px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      animation: pulse-badge 2s infinite;
+    }
+
+    @keyframes pulse-badge {
+      0%, 100% { box-shadow: 0 0 0 0 var(--red-glow); }
+      50% { box-shadow: 0 0 0 6px transparent; }
+    }
+
+    /* ── TABS ── */
+    .tabs {
+      display: flex;
+      background: var(--bg2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+    }
+
+    .tab {
+      padding: 14px 26px;
+      cursor: pointer;
+      color: var(--text-dim);
+      font-weight: 600;
+      font-size: 14px;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      user-select: none;
+    }
+
+    .tab:hover { color: var(--text); }
+
+    .tab.active {
+      color: var(--red);
+      border-bottom-color: var(--red);
+    }
+
+    .tab .tab-icon { font-size: 16px; }
+
+    /* ── CONTENT ── */
+    .content { padding: 24px 28px; max-width: 1200px; }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── FORM COACH ── */
+    .coach-grid {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .camera-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .camera-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .camera-header h3 { font-size: 14px; font-weight: 700; color: var(--text); }
+
+    .live-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #555;
+      display: inline-block;
+      margin-right: 6px;
+    }
+    .live-dot.active {
+      background: var(--red);
+      box-shadow: 0 0 6px var(--red);
+      animation: blink 1.5s infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .video-wrap {
+      position: relative;
+      background: #000;
+      min-height: 400px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #videoElement {
+      width: 100%;
+      max-height: 500px;
+      display: block;
+      transform: scaleX(-1);
+    }
+
+    #outputCanvas {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      transform: scaleX(-1);
+    }
+
+    .camera-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--text-dim);
+      padding: 60px;
+      text-align: center;
+    }
+    .camera-placeholder .icon { font-size: 56px; opacity: 0.3; }
+    .camera-placeholder p { font-size: 14px; }
+
+    /* ── SIDE PANEL ── */
+    .side-panel { display: flex; flex-direction: column; gap: 16px; }
+
+    .card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+    }
+
+    .card h3 {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+      margin-bottom: 14px;
+    }
+
+    /* Exercise selector */
+    .exercise-pills {
+      display: flex;
+      gap: 8px;
+    }
+
+    .pill {
+      flex: 1;
+      padding: 10px;
+      text-align: center;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-dim);
+      transition: all 0.2s;
+    }
+
+    .pill:hover { border-color: var(--red); color: var(--text); }
+
+    .pill.active {
+      border-color: var(--red);
+      background: rgba(229,57,53,0.1);
+      color: var(--red);
+    }
+
+    /* Stats row */
+    .stats-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .stat-box {
+      background: var(--bg3);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .stat-label { font-size: 11px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    .stat-value {
+      font-size: 36px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.1;
+      margin-top: 4px;
+    }
+
+    .stat-value.red { color: var(--red); }
+    .stat-value.green { color: var(--green); }
+    .stat-value.amber { color: var(--amber); }
+
+    /* Form score bar */
+    .score-wrap { margin-top: 4px; }
+    .score-bar-bg {
+      background: var(--bg3);
+      border-radius: 8px;
+      height: 8px;
+      overflow: hidden;
+    }
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 8px;
+      transition: width 0.5s ease, background 0.3s;
+      width: 0%;
+      background: var(--red);
+    }
+
+    /* Feedback items */
+    .feedback-list { display: flex; flex-direction: column; gap: 8px; }
+
+    .feedback-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: var(--bg3);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .feedback-item .fi-icon { font-size: 16px; flex-shrink: 0; }
+    .feedback-item .fi-text { color: var(--text-dim); }
+    .feedback-item.good { border-left: 3px solid var(--green); }
+    .feedback-item.warn { border-left: 3px solid var(--amber); }
+    .feedback-item.bad  { border-left: 3px solid var(--red); }
+    .feedback-item.info { border-left: 3px solid var(--blue); }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .btn-red {
+      background: var(--red);
+      color: white;
+      box-shadow: 0 4px 12px var(--red-glow);
+    }
+    .btn-red:hover { background: var(--red-dim); box-shadow: 0 4px 20px var(--red-glow); }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text-dim);
+      border: 1.5px solid var(--border);
+    }
+    .btn-outline:hover { border-color: var(--red); color: var(--text); }
+
+    /* ── NUTRITION TAB ── */
+    .nutrition-grid {
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    .form-group { margin-bottom: 14px; }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-dim);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    input[type="number"], select {
+      width: 100%;
+      background: var(--bg3);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: var(--text);
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+    }
+
+    input[type="number"]:focus, select:focus { border-color: var(--red); }
+    select option { background: var(--bg3); }
+
+    .macro-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .macro-box {
+      background: var(--bg3);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+      border: 1px solid var(--border);
+    }
+
+    .macro-box .m-label { font-size: 11px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .macro-box .m-value { font-size: 28px; font-weight: 800; margin: 4px 0 2px; }
+    .macro-box .m-unit { font-size: 12px; color: var(--text-dim); }
+    .macro-box.protein .m-value { color: var(--red); }
+    .macro-box.carbs .m-value { color: var(--blue); }
+    .macro-box.fat .m-value { color: var(--amber); }
+
+    .calories-banner {
+      background: linear-gradient(135deg, #1a0a0a, #1a1a1a);
+      border: 1px solid var(--red);
+      border-radius: 12px;
+      padding: 18px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .calories-banner .cb-label { font-size: 14px; color: var(--text-dim); font-weight: 600; }
+    .calories-banner .cb-value { font-size: 32px; font-weight: 800; color: var(--red); }
+    .calories-banner .cb-unit { font-size: 13px; color: var(--text-dim); }
+
+    .meal-plan { display: flex; flex-direction: column; gap: 12px; }
+
+    .meal-row {
+      background: var(--bg3);
+      border-radius: 10px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+    }
+
+    .meal-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+
+    .meal-info .meal-title { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .meal-info .meal-items { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+    .meal-macros { margin-left: auto; font-size: 11px; color: var(--text-dim); text-align: right; white-space: nowrap; }
+    .meal-macros span { display: block; }
+
+    .result-hidden { display: none; }
+
+    /* ── SUPPLEMENT TAB ── */
+    .supps-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+    }
+
+    .supp-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: border-color 0.2s;
+    }
+
+    .supp-card:hover { border-color: var(--red); }
+
+    .supp-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .supp-icon {
+      width: 44px; height: 44px;
+      background: var(--bg3);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .supp-name { font-size: 16px; font-weight: 700; }
+    .supp-category { font-size: 11px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+    .evidence-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .evidence-badge.high { background: rgba(76,175,80,0.15); color: var(--green); }
+    .evidence-badge.moderate { background: rgba(255,152,0,0.15); color: var(--amber); }
+    .evidence-badge.emerging { background: rgba(33,150,243,0.15); color: var(--blue); }
+
+    .supp-detail { font-size: 13px; color: var(--text-dim); line-height: 1.5; }
+
+    .supp-info-row {
+      display: flex;
+      gap: 16px;
+    }
+
+    .supp-info-item .sii-label { font-size: 10px; color: var(--text-dim); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .supp-info-item .sii-value { font-size: 13px; font-weight: 600; margin-top: 2px; }
+
+    .supp-filter-bar {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .filter-pill {
+      padding: 7px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-dim);
+      transition: all 0.2s;
+      background: transparent;
+    }
+
+    .filter-pill:hover { border-color: var(--red); color: var(--text); }
+    .filter-pill.active { border-color: var(--red); background: rgba(229,57,53,0.1); color: var(--red); }
+
+    /* ── DIVIDER / SECTION ── */
+    .section-title {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .section-sub {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 20px;
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .coach-grid { grid-template-columns: 1fr; }
+      .nutrition-grid { grid-template-columns: 1fr; }
+    }
+
+    /* ── SCROLL ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+    /* ── ANGLE DEBUG OVERLAY ── */
+    .angle-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(0,0,0,0.7);
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: monospace;
+      color: #0f0;
+      pointer-events: none;
+      display: none;
+    }
+
+    /* Animated glow ring on form score */
+    .score-ring-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .score-number {
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1;
+      color: var(--green);
+      transition: color 0.3s;
+      min-width: 80px;
+    }
+    .score-number.amber { color: var(--amber); }
+    .score-number.red { color: var(--red); }
+    .score-number.dim { color: var(--text-dim); }
+
+    .no-results {
+      text-align: center;
+      padding: 40px;
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+    .no-results .nr-icon { font-size: 40px; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="logo-wrap">
+    <div class="logo-icon">&#127947;</div>
+    <div>
+      <div class="logo-text">Rep<span class="red">Sense</span> AI</div>
+      <div class="tagline">Train smarter. Recover better. Perform at your peak.</div>
+    </div>
+  </div>
+  <div class="badge">Hackathon MVP</div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('coach')">
+    <span class="tab-icon">&#127909;</span> Form Coach
+  </div>
+  <div class="tab" onclick="showTab('nutrition')">
+    <span class="tab-icon">&#127807;</span> Nutrition Planner
+  </div>
+  <div class="tab" onclick="showTab('supplements')">
+    <span class="tab-icon">&#128138;</span> Supplement Guide
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- TAB 1: FORM COACH                         -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="content">
+<div id="tab-coach" class="tab-panel active">
+  <div class="coach-grid">
+
+    <!-- Camera feed -->
+    <div class="camera-card">
+      <div class="camera-header">
+        <h3><span class="live-dot" id="liveDot"></span> AI Form Detection</h3>
+        <span style="font-size:12px; color:var(--text-dim);" id="exerciseLabel">Select exercise and press Start</span>
+      </div>
+      <div class="video-wrap" id="videoWrap">
+        <div class="camera-placeholder" id="cameraPlaceholder">
+          <div class="icon">&#128247;</div>
+          <p>Press <strong>Start Camera</strong> to begin real-time form analysis</p>
+          <p style="font-size:12px; margin-top:4px;">Allow camera access when prompted</p>
+        </div>
+        <video id="videoElement" playsinline style="display:none;"></video>
+        <canvas id="outputCanvas" style="display:none;"></canvas>
+        <div class="angle-overlay" id="angleOverlay"></div>
+      </div>
+    </div>
+
+    <!-- Side panel -->
+    <div class="side-panel">
+
+      <!-- Exercise selector -->
+      <div class="card">
+        <h3>Exercise</h3>
+        <div class="exercise-pills">
+          <div class="pill active" id="pill-squat" onclick="selectExercise('squat')">&#129464; Squat</div>
+          <div class="pill" id="pill-pushup" onclick="selectExercise('pushup')">&#128170; Push-up</div>
+        </div>
+      </div>
+
+      <!-- Live stats -->
+      <div class="card">
+        <h3>Live Stats</h3>
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="stat-label">Reps</div>
+            <div class="stat-value red" id="repCounter">0</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-label">Status</div>
+            <div class="stat-value" id="positionStatus" style="font-size:14px; padding-top:8px; color:var(--text-dim);">Idle</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Form score -->
+      <div class="card">
+        <h3>Form Score</h3>
+        <div class="score-ring-wrap">
+          <div class="score-number dim" id="formScore">--</div>
+          <div style="flex:1;">
+            <div class="score-bar-bg">
+              <div class="score-bar-fill" id="scoreBar"></div>
+            </div>
+            <div style="font-size:12px; color:var(--text-dim); margin-top:6px;" id="scoreLabel">Start camera to analyse form</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Real-time feedback -->
+      <div class="card" style="flex:1;">
+        <h3>Form Analysis</h3>
+        <div class="feedback-list" id="feedbackList">
+          <div class="feedback-item info">
+            <span class="fi-icon">&#128161;</span>
+            <span class="fi-text">Start camera and perform an exercise to receive real-time feedback.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Controls -->
+      <button class="btn btn-red" id="startBtn" onclick="toggleCamera()">
+        &#9654; Start Camera
+      </button>
+      <button class="btn btn-outline" onclick="resetStats()">Reset Stats</button>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- TAB 2: NUTRITION PLANNER                  -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="tab-nutrition" class="tab-panel">
+  <div class="section-title">AI Nutrition Planner</div>
+  <div class="section-sub">Enter your details to get a personalised macro plan and culturally-aware meal suggestions.</div>
+
+  <div class="nutrition-grid">
+
+    <!-- Input form -->
+    <div class="card" style="height:fit-content;">
+      <h3>Your Profile</h3>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Weight (kg)</label>
+          <input type="number" id="weight" placeholder="e.g. 70" min="30" max="250">
+        </div>
+        <div class="form-group">
+          <label>Height (cm)</label>
+          <input type="number" id="height" placeholder="e.g. 175" min="120" max="250">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>Age</label>
+          <input type="number" id="age" placeholder="e.g. 28" min="14" max="90">
+        </div>
+        <div class="form-group">
+          <label>Biological Sex</label>
+          <select id="sex">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Training Goal</label>
+        <select id="goal">
+          <option value="muscle">Muscle Gain</option>
+          <option value="fatloss">Fat Loss</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="endurance">Endurance Performance</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Diet Type</label>
+        <select id="diet">
+          <option value="omnivore">Standard (Omnivore)</option>
+          <option value="vegetarian">Vegetarian</option>
+          <option value="vegan">Vegan</option>
+          <option value="hindu">Hindu Vegetarian (no beef/egg)</option>
+          <option value="halal">Halal</option>
+          <option value="highprotein">High-Protein / Carnivore</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Activity Level</label>
+        <select id="activity">
+          <option value="1.2">Sedentary (desk job, no exercise)</option>
+          <option value="1.375">Lightly Active (1-3 days/week)</option>
+          <option value="1.55" selected>Moderately Active (3-5 days/week)</option>
+          <option value="1.725">Very Active (6-7 days/week)</option>
+          <option value="1.9">Athlete (2x daily training)</option>
+        </select>
+      </div>
+
+      <button class="btn btn-red" onclick="calculateNutrition()">
+        &#9889; Calculate My Plan
+      </button>
+    </div>
+
+    <!-- Results -->
+    <div id="nutritionResults" class="result-hidden">
+      <div class="calories-banner">
+        <div>
+          <div class="cb-label">Daily Calorie Target</div>
+          <div style="font-size:12px; color:var(--text-dim);" id="goalLabel">–</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="cb-value" id="calorieResult">–</div>
+          <div class="cb-unit">kcal / day</div>
+        </div>
+      </div>
+
+      <div class="macro-grid">
+        <div class="macro-box protein">
+          <div class="m-label">Protein</div>
+          <div class="m-value" id="proteinResult">–</div>
+          <div class="m-unit">grams / day</div>
+        </div>
+        <div class="macro-box carbs">
+          <div class="m-label">Carbohydrates</div>
+          <div class="m-value" id="carbResult">–</div>
+          <div class="m-unit">grams / day</div>
+        </div>
+        <div class="macro-box fat">
+          <div class="m-label">Fats</div>
+          <div class="m-value" id="fatResult">–</div>
+          <div class="m-unit">grams / day</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:0;">
+        <h3>Today's Meal Plan</h3>
+        <div class="meal-plan" id="mealPlan"></div>
+      </div>
+    </div>
+
+    <div id="nutritionPlaceholder" style="display:flex; align-items:center; justify-content:center;">
+      <div class="no-results">
+        <div class="nr-icon">&#127807;</div>
+        <p>Fill in your profile and press<br><strong>Calculate My Plan</strong></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- TAB 3: SUPPLEMENT GUIDE                   -->
+<!-- ═══════════════════════════════════════════ -->
+<div id="tab-supplements" class="tab-panel">
+  <div class="section-title">AI Supplement Guide</div>
+  <div class="section-sub">Evidence-based supplement guidance tailored to your training goal. Always consult a healthcare professional before starting any new supplement regimen.</div>
+
+  <div class="supp-filter-bar">
+    <button class="filter-pill active" onclick="filterSupps('all', this)">All</button>
+    <button class="filter-pill" onclick="filterSupps('muscle', this)">Muscle Gain</button>
+    <button class="filter-pill" onclick="filterSupps('fatloss', this)">Fat Loss</button>
+    <button class="filter-pill" onclick="filterSupps('endurance', this)">Endurance</button>
+    <button class="filter-pill" onclick="filterSupps('recovery', this)">Recovery</button>
+    <button class="filter-pill" onclick="filterSupps('vegan', this)">Vegan / Plant-Based</button>
+  </div>
+
+  <div class="supps-grid" id="suppsGrid"></div>
+</div>
+
+</div><!-- /content -->
+
+<script>
+// ─────────────────────────────────────────────
+// TAB NAVIGATION
+// ─────────────────────────────────────────────
+function showTab(id) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+// ─────────────────────────────────────────────
+// FORM COACH — MEDIAPIPE POSE
+// ─────────────────────────────────────────────
+let cameraActive = false;
+let currentExercise = 'squat';
+let poseInstance = null;
+let cameraInstance = null;
+let repCount = 0;
+let exerciseState = 'up'; // 'up' or 'down'
+let formScoreValue = 0;
+let lastFeedback = [];
+
+const LANDMARKS = {
+  NOSE: 0,
+  L_SHOULDER: 11, R_SHOULDER: 12,
+  L_ELBOW: 13,    R_ELBOW: 14,
+  L_WRIST: 15,    R_WRIST: 16,
+  L_HIP: 23,      R_HIP: 24,
+  L_KNEE: 25,     R_KNEE: 26,
+  L_ANKLE: 27,    R_ANKLE: 28,
+};
+
+function selectExercise(type) {
+  currentExercise = type;
+  document.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+  document.getElementById('pill-' + type).classList.add('active');
+  document.getElementById('exerciseLabel').textContent = type === 'squat' ? 'Squat Analysis' : 'Push-up Analysis';
+  resetStats();
+}
+
+function resetStats() {
+  repCount = 0;
+  exerciseState = 'up';
+  document.getElementById('repCounter').textContent = '0';
+  document.getElementById('positionStatus').textContent = 'Idle';
+  document.getElementById('formScore').textContent = '--';
+  document.getElementById('formScore').className = 'score-number dim';
+  document.getElementById('scoreBar').style.width = '0%';
+  document.getElementById('scoreLabel').textContent = 'Start camera to analyse form';
+  document.getElementById('feedbackList').innerHTML = `
+    <div class="feedback-item info">
+      <span class="fi-icon">&#128161;</span>
+      <span class="fi-text">Start camera and perform an exercise to receive real-time feedback.</span>
+    </div>`;
+}
+
+async function toggleCamera() {
+  if (cameraActive) {
+    stopCamera();
+  } else {
+    await startCamera();
+  }
+}
+
+async function startCamera() {
+  const btn = document.getElementById('startBtn');
+  btn.textContent = 'Starting...';
+  btn.disabled = true;
+
+  try {
+    poseInstance = new Pose({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`
+    });
+
+    poseInstance.setOptions({
+      modelComplexity: 1,
+      smoothLandmarks: true,
+      enableSegmentation: false,
+      minDetectionConfidence: 0.5,
+      minTrackingConfidence: 0.5,
+    });
+
+    poseInstance.onResults(onPoseResults);
+
+    const video = document.getElementById('videoElement');
+    const canvas = document.getElementById('outputCanvas');
+
+    cameraInstance = new Camera(video, {
+      onFrame: async () => {
+        await poseInstance.send({ image: video });
+      },
+      width: 640,
+      height: 480,
+    });
+
+    await cameraInstance.start();
+
+    // Show video + canvas
+    document.getElementById('cameraPlaceholder').style.display = 'none';
+    video.style.display = 'block';
+    canvas.style.display = 'block';
+
+    cameraActive = true;
+    document.getElementById('liveDot').classList.add('active');
+    btn.innerHTML = '&#9632; Stop Camera';
+    btn.disabled = false;
+    document.getElementById('exerciseLabel').textContent =
+      currentExercise === 'squat' ? 'Squat Analysis — Active' : 'Push-up Analysis — Active';
+
+  } catch (err) {
+    console.error('Camera error:', err);
+    btn.innerHTML = '&#9654; Start Camera';
+    btn.disabled = false;
+    alert('Camera access denied or MediaPipe failed to load. Please allow camera access and try again.');
+  }
+}
+
+function stopCamera() {
+  if (cameraInstance) { cameraInstance.stop(); cameraInstance = null; }
+  if (poseInstance) { poseInstance.close(); poseInstance = null; }
+
+  const video = document.getElementById('videoElement');
+  const canvas = document.getElementById('outputCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  video.style.display = 'none';
+  canvas.style.display = 'none';
+  document.getElementById('cameraPlaceholder').style.display = 'flex';
+  document.getElementById('liveDot').classList.remove('active');
+
+  const btn = document.getElementById('startBtn');
+  btn.innerHTML = '&#9654; Start Camera';
+  btn.disabled = false;
+  cameraActive = false;
+  document.getElementById('exerciseLabel').textContent = 'Select exercise and press Start';
+}
+
+function calculateAngle(a, b, c) {
+  // Angle at joint b between a-b-c
+  const radians = Math.atan2(c.y - b.y, c.x - b.x)
+                - Math.atan2(a.y - b.y, a.x - b.x);
+  let angle = Math.abs(radians * 180 / Math.PI);
+  if (angle > 180) angle = 360 - angle;
+  return angle;
+}
+
+function onPoseResults(results) {
+  const canvas = document.getElementById('outputCanvas');
+  const video = document.getElementById('videoElement');
+  canvas.width = video.videoWidth || 640;
+  canvas.height = video.videoHeight || 480;
+  const ctx = canvas.getContext('2d');
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  if (!results.poseLandmarks) return;
+
+  // Draw skeleton
+  drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, { color: '#555', lineWidth: 2 });
+  drawLandmarks(ctx, results.poseLandmarks, {
+    color: '#e53935',
+    fillColor: '#ff6659',
+    lineWidth: 1,
+    radius: 4,
+  });
+
+  const lm = results.poseLandmarks;
+
+  if (currentExercise === 'squat') {
+    analyseSquat(lm, ctx);
+  } else {
+    analysePushup(lm, ctx);
+  }
+}
+
+function analyseSquat(lm, ctx) {
+  const L = LANDMARKS;
+  const lHip   = lm[L.L_HIP];
+  const lKnee  = lm[L.L_KNEE];
+  const lAnkle = lm[L.L_ANKLE];
+  const rHip   = lm[L.R_HIP];
+  const rKnee  = lm[L.R_KNEE];
+  const rAnkle = lm[L.R_ANKLE];
+  const lShoulder = lm[L.L_SHOULDER];
+  const rShoulder = lm[L.R_SHOULDER];
+
+  if (!lKnee || !lHip || !lAnkle) return;
+
+  const leftKneeAngle  = calculateAngle(lHip,  lKnee,  lAnkle);
+  const rightKneeAngle = calculateAngle(rHip,  rKnee,  rAnkle);
+  const avgKneeAngle   = (leftKneeAngle + rightKneeAngle) / 2;
+
+  // Back angle: angle at hip between shoulder-hip-knee
+  const backAngle = calculateAngle(lShoulder, lHip, lKnee);
+
+  // Rep counting state machine
+  const DOWN_THRESHOLD = 95;
+  const UP_THRESHOLD   = 155;
+
+  if (avgKneeAngle < DOWN_THRESHOLD && exerciseState === 'up') {
+    exerciseState = 'down';
+    document.getElementById('positionStatus').textContent = 'Down ↓';
+    document.getElementById('positionStatus').style.color = 'var(--amber)';
+  } else if (avgKneeAngle > UP_THRESHOLD && exerciseState === 'down') {
+    exerciseState = 'up';
+    repCount++;
+    document.getElementById('repCounter').textContent = repCount;
+    document.getElementById('positionStatus').textContent = 'Up ↑';
+    document.getElementById('positionStatus').style.color = 'var(--green)';
+  }
+
+  // Form analysis
+  const feedback = [];
+  let score = 100;
+
+  // 1. Knee symmetry
+  const kneeDiff = Math.abs(leftKneeAngle - rightKneeAngle);
+  if (kneeDiff > 20) {
+    feedback.push({ type: 'warn', icon: '⚠️', text: 'Uneven knee bend — left and right knees should flex equally.' });
+    score -= 15;
+  } else {
+    feedback.push({ type: 'good', icon: '✅', text: 'Knee symmetry: even on both sides.' });
+  }
+
+  // 2. Squat depth (only when down)
+  if (exerciseState === 'down') {
+    if (avgKneeAngle > 110) {
+      feedback.push({ type: 'warn', icon: '⚠️', text: 'Squat depth is shallow — aim to bring hips below parallel.' });
+      score -= 10;
+    } else if (avgKneeAngle < 70) {
+      feedback.push({ type: 'good', icon: '✅', text: 'Excellent depth — full range of motion achieved.' });
+    } else {
+      feedback.push({ type: 'good', icon: '✅', text: 'Good squat depth.' });
+    }
+  }
+
+  // 3. Knee cave (x-axis: knee should be over ankle, not collapsing inward)
+  // In mirrored view, left is right - check if knees are collapsing toward center
+  const lKneeCave = lKnee.x - lAnkle.x;
+  const rKneeCave = rAnkle.x - rKnee.x;
+  if (lKneeCave > 0.06 || rKneeCave > 0.06) {
+    feedback.push({ type: 'bad', icon: '🔴', text: 'Knee cave detected — push your knees out over your toes.' });
+    score -= 20;
+  } else {
+    feedback.push({ type: 'good', icon: '✅', text: 'Knee tracking: aligned over toes.' });
+  }
+
+  // 4. Back straightness
+  if (backAngle < 50) {
+    feedback.push({ type: 'warn', icon: '⚠️', text: 'Forward lean too high — keep chest more upright.' });
+    score -= 10;
+  } else if (backAngle > 85) {
+    feedback.push({ type: 'good', icon: '✅', text: 'Back position: upright and strong.' });
+  } else {
+    feedback.push({ type: 'good', icon: '✅', text: 'Back angle is acceptable.' });
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  updateFormScore(score, feedback);
+}
+
+function analysePushup(lm, ctx) {
+  const L = LANDMARKS;
+  const lShoulder = lm[L.L_SHOULDER];
+  const lElbow    = lm[L.L_ELBOW];
+  const lWrist    = lm[L.L_WRIST];
+  const rShoulder = lm[L.R_SHOULDER];
+  const rElbow    = lm[L.R_ELBOW];
+  const rWrist    = lm[L.R_WRIST];
+  const lHip      = lm[L.L_HIP];
+  const rHip      = lm[L.R_HIP];
+  const lAnkle    = lm[L.L_ANKLE];
+
+  if (!lShoulder || !lElbow || !lWrist) return;
+
+  const leftElbowAngle  = calculateAngle(lShoulder, lElbow, lWrist);
+  const rightElbowAngle = calculateAngle(rShoulder, rElbow, rWrist);
+  const avgElbowAngle   = (leftElbowAngle + rightElbowAngle) / 2;
+
+  // Body line angle (shoulder-hip-ankle)
+  const bodyAngle = calculateAngle(lShoulder, lHip, lAnkle);
+
+  const DOWN_THRESHOLD = 90;
+  const UP_THRESHOLD   = 155;
+
+  if (avgElbowAngle < DOWN_THRESHOLD && exerciseState === 'up') {
+    exerciseState = 'down';
+    document.getElementById('positionStatus').textContent = 'Down ↓';
+    document.getElementById('positionStatus').style.color = 'var(--amber)';
+  } else if (avgElbowAngle > UP_THRESHOLD && exerciseState === 'down') {
+    exerciseState = 'up';
+    repCount++;
+    document.getElementById('repCounter').textContent = repCount;
+    document.getElementById('positionStatus').textContent = 'Up ↑';
+    document.getElementById('positionStatus').style.color = 'var(--green)';
+  }
+
+  const feedback = [];
+  let score = 100;
+
+  // 1. Elbow symmetry
+  const elbowDiff = Math.abs(leftElbowAngle - rightElbowAngle);
+  if (elbowDiff > 20) {
+    feedback.push({ type: 'warn', icon: '⚠️', text: 'Uneven arm bend — keep elbows symmetric.' });
+    score -= 15;
+  } else {
+    feedback.push({ type: 'good', icon: '✅', text: 'Arm symmetry: both sides even.' });
+  }
+
+  // 2. Chest to floor
+  if (exerciseState === 'down' && avgElbowAngle > 100) {
+    feedback.push({ type: 'warn', icon: '⚠️', text: 'Push-up depth too shallow — lower your chest further.' });
+    score -= 10;
+  } else {
+    feedback.push({ type: 'good', icon: '✅', text: 'Good depth on the push-up.' });
+  }
+
+  // 3. Body line (no sagging hips or raised hips)
+  if (bodyAngle < 155) {
+    feedback.push({ type: 'bad', icon: '🔴', text: 'Hips are too high or low — keep a straight body line.' });
+    score -= 20;
+  } else {
+    feedback.push({ type: 'good', icon: '✅', text: 'Body line: straight from head to heel.' });
+  }
+
+  // 4. Elbow flare
+  const shoulderWidth  = Math.abs(lShoulder.x - rShoulder.x);
+  const elbowWidth     = Math.abs(lElbow.x - rElbow.x);
+  if (elbowWidth > shoulderWidth * 1.5) {
+    feedback.push({ type: 'warn', icon: '⚠️', text: 'Elbows flaring out — tuck them slightly toward your body.' });
+    score -= 10;
+  } else {
+    feedback.push({ type: 'good', icon: '✅', text: 'Elbow position: good tuck.' });
+  }
+
+  score = Math.max(0, Math.min(100, score));
+  updateFormScore(score, feedback);
+}
+
+function updateFormScore(score, feedback) {
+  const el = document.getElementById('formScore');
+  const bar = document.getElementById('scoreBar');
+  const label = document.getElementById('scoreLabel');
+  const list = document.getElementById('feedbackList');
+
+  formScoreValue = score;
+  el.textContent = Math.round(score);
+  bar.style.width = score + '%';
+
+  if (score >= 80) {
+    el.className = 'score-number green';
+    bar.style.background = 'var(--green)';
+    label.textContent = 'Excellent form!';
+  } else if (score >= 60) {
+    el.className = 'score-number amber';
+    bar.style.background = 'var(--amber)';
+    label.textContent = 'Good — a few things to fix';
+  } else {
+    el.className = 'score-number red';
+    bar.style.background = 'var(--red)';
+    label.textContent = 'Needs improvement';
+  }
+
+  list.innerHTML = feedback.map(f => `
+    <div class="feedback-item ${f.type}">
+      <span class="fi-icon">${f.icon}</span>
+      <span class="fi-text">${f.text}</span>
+    </div>
+  `).join('');
+}
+
+// ─────────────────────────────────────────────
+// NUTRITION PLANNER
+// ─────────────────────────────────────────────
+
+const MEAL_PLANS = {
+  omnivore: {
+    muscle: [
+      { time: '🌅 Breakfast', items: 'Scrambled eggs (3) + oats + banana + milk', protein: 38, carbs: 60, fat: 14 },
+      { time: '☀️ Lunch',     items: 'Grilled chicken breast + brown rice + broccoli', protein: 45, carbs: 65, fat: 8 },
+      { time: '🌙 Dinner',    items: 'Salmon fillet + sweet potato + green beans', protein: 40, carbs: 45, fat: 18 },
+      { time: '🍎 Snack',     items: 'Greek yogurt + almonds + berries', protein: 20, carbs: 18, fat: 12 },
+    ],
+    fatloss: [
+      { time: '🌅 Breakfast', items: 'Egg whites (4) + spinach omelette + black coffee', protein: 28, carbs: 8, fat: 5 },
+      { time: '☀️ Lunch',     items: 'Tuna salad + mixed greens + olive oil dressing', protein: 35, carbs: 12, fat: 14 },
+      { time: '🌙 Dinner',    items: 'Grilled turkey breast + cauliflower rice + asparagus', protein: 42, carbs: 20, fat: 6 },
+      { time: '🍎 Snack',     items: 'Cottage cheese + cucumber slices', protein: 20, carbs: 6, fat: 4 },
+    ],
+    maintenance: [
+      { time: '🌅 Breakfast', items: '2 eggs + whole wheat toast + avocado', protein: 22, carbs: 35, fat: 18 },
+      { time: '☀️ Lunch',     items: 'Chicken sandwich + side salad + fruit', protein: 32, carbs: 55, fat: 12 },
+      { time: '🌙 Dinner',    items: 'Beef stir-fry + rice noodles + mixed veg', protein: 35, carbs: 60, fat: 16 },
+      { time: '🍎 Snack',     items: 'Mixed nuts + apple', protein: 8, carbs: 25, fat: 16 },
+    ],
+    endurance: [
+      { time: '🌅 Breakfast', items: 'Porridge + honey + banana + boiled eggs', protein: 25, carbs: 80, fat: 10 },
+      { time: '☀️ Lunch',     items: 'Pasta + lean mince + tomato sauce + salad', protein: 38, carbs: 90, fat: 12 },
+      { time: '🌙 Dinner',    items: 'Grilled chicken + quinoa + roasted veg', protein: 40, carbs: 70, fat: 10 },
+      { time: '🍎 Snack',     items: 'Energy bar + electrolyte drink', protein: 10, carbs: 45, fat: 5 },
+    ],
+  },
+  vegetarian: {
+    muscle: [
+      { time: '🌅 Breakfast', items: 'Greek yogurt + granola + mixed berries + chia seeds', protein: 28, carbs: 55, fat: 12 },
+      { time: '☀️ Lunch',     items: 'Paneer stir-fry + brown rice + mixed peppers', protein: 30, carbs: 60, fat: 16 },
+      { time: '🌙 Dinner',    items: 'Lentil dal + quinoa + spinach + raita', protein: 28, carbs: 65, fat: 8 },
+      { time: '🍎 Snack',     items: 'Cottage cheese + almonds + banana', protein: 20, carbs: 28, fat: 14 },
+    ],
+    fatloss: [
+      { time: '🌅 Breakfast', items: 'Egg white omelette + mushrooms + tomatoes', protein: 24, carbs: 10, fat: 4 },
+      { time: '☀️ Lunch',     items: 'Chickpea salad + cucumber + lemon dressing', protein: 20, carbs: 35, fat: 8 },
+      { time: '🌙 Dinner',    items: 'Tofu scramble + cauliflower rice + greens', protein: 26, carbs: 18, fat: 10 },
+      { time: '🍎 Snack',     items: 'Low-fat Greek yogurt + celery sticks', protein: 16, carbs: 8, fat: 2 },
+    ],
+    maintenance: [
+      { time: '🌅 Breakfast', items: 'Oats + milk + boiled eggs + fruit', protein: 24, carbs: 60, fat: 12 },
+      { time: '☀️ Lunch',     items: 'Cheese wrap + hummus + roasted veg', protein: 22, carbs: 55, fat: 16 },
+      { time: '🌙 Dinner',    items: 'Pasta + cheese sauce + broccoli', protein: 28, carbs: 75, fat: 18 },
+      { time: '🍎 Snack',     items: 'Peanut butter on rice cakes', protein: 8, carbs: 22, fat: 12 },
+    ],
+    endurance: [
+      { time: '🌅 Breakfast', items: 'Large porridge + honey + eggs + banana', protein: 26, carbs: 90, fat: 10 },
+      { time: '☀️ Lunch',     items: 'Bean pasta + cheese + tomato sauce + salad', protein: 32, carbs: 85, fat: 14 },
+      { time: '🌙 Dinner',    items: 'Paneer curry + basmati rice + chutney', protein: 30, carbs: 75, fat: 14 },
+      { time: '🍎 Snack',     items: 'Smoothie: milk + banana + peanut butter + oats', protein: 18, carbs: 60, fat: 10 },
+    ],
+  },
+  vegan: {
+    muscle: [
+      { time: '🌅 Breakfast', items: 'Tofu scramble + whole grain toast + avocado + nutritional yeast', protein: 28, carbs: 40, fat: 18 },
+      { time: '☀️ Lunch',     items: 'Tempeh + brown rice + edamame + sesame dressing', protein: 35, carbs: 65, fat: 14 },
+      { time: '🌙 Dinner',    items: 'Lentil bolognese + pasta + cashew parmesan', protein: 28, carbs: 80, fat: 12 },
+      { time: '🍎 Snack',     items: 'Plant protein shake + banana + almond butter', protein: 28, carbs: 38, fat: 12 },
+    ],
+    fatloss: [
+      { time: '🌅 Breakfast', items: 'Chia seed pudding (oat milk) + raspberries', protein: 14, carbs: 28, fat: 12 },
+      { time: '☀️ Lunch',     items: 'Black bean salad + quinoa + lime + coriander', protein: 22, carbs: 45, fat: 8 },
+      { time: '🌙 Dinner',    items: 'Silken tofu + bok choy + mushrooms + miso broth', protein: 20, carbs: 16, fat: 6 },
+      { time: '🍎 Snack',     items: 'Edamame + cucumber sticks', protein: 12, carbs: 14, fat: 4 },
+    ],
+    maintenance: [
+      { time: '🌅 Breakfast', items: 'Overnight oats + soy milk + chia + blueberries', protein: 16, carbs: 65, fat: 10 },
+      { time: '☀️ Lunch',     items: 'Chickpea wrap + tahini + roasted veg', protein: 20, carbs: 60, fat: 14 },
+      { time: '🌙 Dinner',    items: 'Tofu curry + basmati rice + papadum', protein: 24, carbs: 72, fat: 14 },
+      { time: '🍎 Snack',     items: 'Mixed nuts + dates', protein: 6, carbs: 30, fat: 16 },
+    ],
+    endurance: [
+      { time: '🌅 Breakfast', items: 'Banana pancakes (oat + banana) + maple syrup + berries', protein: 14, carbs: 95, fat: 8 },
+      { time: '☀️ Lunch',     items: 'Sweet potato + black beans + salsa + avocado', protein: 18, carbs: 90, fat: 14 },
+      { time: '🌙 Dinner',    items: 'Soba noodles + edamame + miso + broccoli', protein: 22, carbs: 80, fat: 8 },
+      { time: '🍎 Snack',     items: 'Energy balls: dates + oats + peanut butter', protein: 8, carbs: 50, fat: 12 },
+    ],
+  },
+  hindu: {
+    muscle: [
+      { time: '🌅 Breakfast', items: 'Poha (flattened rice) + peanuts + turmeric + lime + chai', protein: 12, carbs: 55, fat: 8 },
+      { time: '☀️ Lunch',     items: 'Paneer tikka + dal makhani + roti + raita', protein: 38, carbs: 70, fat: 20 },
+      { time: '🌙 Dinner',    items: 'Mixed dal + brown rice + sabzi + ghee', protein: 28, carbs: 65, fat: 10 },
+      { time: '🍎 Snack',     items: 'Lassi (full-fat) + chana chaat + fruit', protein: 18, carbs: 40, fat: 10 },
+    ],
+    fatloss: [
+      { time: '🌅 Breakfast', items: 'Moong dal chilla + mint chutney + black coffee', protein: 18, carbs: 30, fat: 4 },
+      { time: '☀️ Lunch',     items: 'Sprout salad + roasted makhana + lemon', protein: 16, carbs: 32, fat: 6 },
+      { time: '🌙 Dinner',    items: 'Lauki sabzi + dal + phulka (1-2 rotis)', protein: 20, carbs: 45, fat: 6 },
+      { time: '🍎 Snack',     items: 'Buttermilk + cucumber slices', protein: 6, carbs: 8, fat: 2 },
+    ],
+    maintenance: [
+      { time: '🌅 Breakfast', items: 'Idli (4) + sambar + coconut chutney', protein: 14, carbs: 60, fat: 8 },
+      { time: '☀️ Lunch',     items: 'Chole + jeera rice + papad + salad', protein: 22, carbs: 80, fat: 10 },
+      { time: '🌙 Dinner',    items: 'Paneer bhurji + roti (2) + sabzi', protein: 28, carbs: 55, fat: 16 },
+      { time: '🍎 Snack',     items: 'Dahi + banana + handful almonds', protein: 14, carbs: 30, fat: 10 },
+    ],
+    endurance: [
+      { time: '🌅 Breakfast', items: 'Banana + peanut butter + milk + oats (daliya)', protein: 20, carbs: 85, fat: 12 },
+      { time: '☀️ Lunch',     items: 'Rajma + rice + curd + pickle', protein: 24, carbs: 90, fat: 8 },
+      { time: '🌙 Dinner',    items: 'Khichdi (dal + rice) + ghee + papad', protein: 18, carbs: 80, fat: 12 },
+      { time: '🍎 Snack',     items: 'Coconut water + dates + walnuts', protein: 4, carbs: 45, fat: 8 },
+    ],
+  },
+  halal: {
+    muscle: [
+      { time: '🌅 Breakfast', items: 'Halal beef mince omelette + whole wheat toast + dates', protein: 38, carbs: 45, fat: 16 },
+      { time: '☀️ Lunch',     items: 'Grilled lamb kebabs + brown rice + tabbouleh', protein: 44, carbs: 65, fat: 16 },
+      { time: '🌙 Dinner',    items: 'Chicken biryani + raita + salad', protein: 40, carbs: 72, fat: 14 },
+      { time: '🍎 Snack',     items: 'Labneh + pita bread + cucumber', protein: 18, carbs: 35, fat: 10 },
+    ],
+    fatloss: [
+      { time: '🌅 Breakfast', items: 'Grilled chicken kofta + boiled eggs + black tea', protein: 38, carbs: 5, fat: 10 },
+      { time: '☀️ Lunch',     items: 'Fattoush salad + grilled fish + lemon', protein: 32, carbs: 20, fat: 10 },
+      { time: '🌙 Dinner',    items: 'Baked chicken thighs + roasted cauliflower + herbs', protein: 40, carbs: 18, fat: 12 },
+      { time: '🍎 Snack',     items: 'Hummus + carrot sticks', protein: 8, carbs: 16, fat: 6 },
+    ],
+    maintenance: [
+      { time: '🌅 Breakfast', items: 'Egg shakshuka + sourdough + olives', protein: 24, carbs: 45, fat: 16 },
+      { time: '☀️ Lunch',     items: 'Chicken shawarma wrap + garlic sauce + salad', protein: 36, carbs: 55, fat: 18 },
+      { time: '🌙 Dinner',    items: 'Lamb stew + couscous + harissa', protein: 38, carbs: 60, fat: 16 },
+      { time: '🍎 Snack',     items: 'Dates + mixed nuts + yogurt', protein: 10, carbs: 35, fat: 14 },
+    ],
+    endurance: [
+      { time: '🌅 Breakfast', items: 'Foul medames + eggs + pita + olive oil', protein: 26, carbs: 80, fat: 14 },
+      { time: '☀️ Lunch',     items: 'Chicken and lentil soup + bread + fruit', protein: 32, carbs: 85, fat: 10 },
+      { time: '🌙 Dinner',    items: 'Grilled chicken + mujaddara (lentils + rice) + salad', protein: 36, carbs: 80, fat: 10 },
+      { time: '🍎 Snack',     items: 'Banana + almond butter + oat bar', protein: 12, carbs: 55, fat: 12 },
+    ],
+  },
+  highprotein: {
+    muscle: [
+      { time: '🌅 Breakfast', items: '5 whole eggs + lean beef mince + black coffee', protein: 55, carbs: 4, fat: 28 },
+      { time: '☀️ Lunch',     items: 'Grilled chicken breast x2 + sweet potato + asparagus', protein: 70, carbs: 45, fat: 10 },
+      { time: '🌙 Dinner',    items: 'Sirloin steak + broccoli + butter', protein: 60, carbs: 10, fat: 24 },
+      { time: '🍎 Snack',     items: 'Whey shake + Greek yogurt + cottage cheese', protein: 60, carbs: 12, fat: 6 },
+    ],
+    fatloss: [
+      { time: '🌅 Breakfast', items: 'Egg whites (6) + smoked salmon + black coffee', protein: 50, carbs: 2, fat: 8 },
+      { time: '☀️ Lunch',     items: 'Shredded chicken (200g) + leafy greens + olive oil', protein: 48, carbs: 6, fat: 14 },
+      { time: '🌙 Dinner',    items: 'White fish fillet x2 + steamed veg + lemon', protein: 55, carbs: 12, fat: 6 },
+      { time: '🍎 Snack',     items: 'Beef jerky + hard-boiled eggs (2)', protein: 30, carbs: 4, fat: 8 },
+    ],
+    maintenance: [
+      { time: '🌅 Breakfast', items: '3 eggs + turkey rashers + mushrooms + tomato', protein: 44, carbs: 10, fat: 20 },
+      { time: '☀️ Lunch',     items: 'Chicken thighs + rice + steamed broccoli', protein: 50, carbs: 55, fat: 18 },
+      { time: '🌙 Dinner',    items: 'Lean mince bolognese + courgette noodles', protein: 48, carbs: 18, fat: 16 },
+      { time: '🍎 Snack',     items: 'Whey protein shake + banana', protein: 30, carbs: 28, fat: 4 },
+    ],
+    endurance: [
+      { time: '🌅 Breakfast', items: 'Oats + whey protein + banana + eggs', protein: 50, carbs: 80, fat: 12 },
+      { time: '☀️ Lunch',     items: 'Chicken rice bowl + beans + salsa', protein: 55, carbs: 85, fat: 10 },
+      { time: '🌙 Dinner',    items: 'Salmon + quinoa + roasted sweet potato', protein: 45, carbs: 70, fat: 20 },
+      { time: '🍎 Snack',     items: 'Protein bar + milk', protein: 32, carbs: 45, fat: 8 },
+    ],
+  },
+};
+
+function calculateNutrition() {
+  const weight   = parseFloat(document.getElementById('weight').value);
+  const height   = parseFloat(document.getElementById('height').value);
+  const age      = parseFloat(document.getElementById('age').value);
+  const sex      = document.getElementById('sex').value;
+  const goal     = document.getElementById('goal').value;
+  const diet     = document.getElementById('diet').value;
+  const activity = parseFloat(document.getElementById('activity').value);
+
+  if (!weight || !height || !age) {
+    alert('Please fill in your weight, height, and age.');
+    return;
+  }
+
+  // Mifflin-St Jeor BMR
+  let bmr = sex === 'male'
+    ? 10 * weight + 6.25 * height - 5 * age + 5
+    : 10 * weight + 6.25 * height - 5 * age - 161;
+
+  let tdee = bmr * activity;
+
+  // Adjust calories for goal
+  let calAdj = 0, goalText = '';
+  if (goal === 'muscle')      { calAdj = +300; goalText = 'Muscle Gain — caloric surplus'; }
+  if (goal === 'fatloss')     { calAdj = -400; goalText = 'Fat Loss — caloric deficit'; }
+  if (goal === 'maintenance') { calAdj =    0; goalText = 'Maintenance — caloric balance'; }
+  if (goal === 'endurance')   { calAdj = +150; goalText = 'Endurance — slight surplus'; }
+
+  const calories = Math.round(tdee + calAdj);
+
+  // Protein targets (g/kg)
+  const proteinMultiplier = {
+    muscle: 1.9, fatloss: 1.8, maintenance: 1.4, endurance: 1.6
+  }[goal];
+
+  const protein = Math.round(weight * proteinMultiplier);
+  const proteinCals = protein * 4;
+
+  // Fat: ~25-30% of calories
+  const fat = Math.round((calories * 0.27) / 9);
+  const fatCals = fat * 9;
+
+  // Carbs: remaining
+  const carbs = Math.round((calories - proteinCals - fatCals) / 4);
+
+  // Update UI
+  document.getElementById('calorieResult').textContent = calories.toLocaleString();
+  document.getElementById('goalLabel').textContent = goalText;
+  document.getElementById('proteinResult').textContent = protein;
+  document.getElementById('carbResult').textContent = Math.max(0, carbs);
+  document.getElementById('fatResult').textContent = fat;
+
+  // Meal plan
+  const dietKey = diet in MEAL_PLANS ? diet : 'omnivore';
+  const goalKey = goal in MEAL_PLANS[dietKey] ? goal : 'maintenance';
+  const meals = MEAL_PLANS[dietKey][goalKey];
+
+  document.getElementById('mealPlan').innerHTML = meals.map(m => `
+    <div class="meal-row">
+      <div class="meal-icon">${m.time.split(' ')[0]}</div>
+      <div class="meal-info">
+        <div class="meal-title">${m.time.replace(/^\S+\s/, '')}</div>
+        <div class="meal-items">${m.items}</div>
+      </div>
+      <div class="meal-macros">
+        <span style="color:var(--red);">${m.protein}g protein</span>
+        <span style="color:var(--blue);">${m.carbs}g carbs</span>
+        <span style="color:var(--amber);">${m.fat}g fat</span>
+      </div>
+    </div>
+  `).join('');
+
+  document.getElementById('nutritionResults').classList.remove('result-hidden');
+  document.getElementById('nutritionResults').style.display = 'block';
+  document.getElementById('nutritionPlaceholder').style.display = 'none';
+}
+
+// ─────────────────────────────────────────────
+// SUPPLEMENT GUIDE
+// ─────────────────────────────────────────────
+
+const SUPPLEMENTS = [
+  {
+    name: 'Creatine Monohydrate',
+    category: 'Strength & Power',
+    icon: '⚡',
+    evidence: 'high',
+    detail: 'One of the most researched supplements in sports science. Increases phosphocreatine stores in muscles, enhancing ATP regeneration during high-intensity exercise.',
+    dose: '3–5 g daily',
+    timing: 'Any time (consistency > timing)',
+    tags: ['muscle', 'endurance'],
+  },
+  {
+    name: 'Whey Protein',
+    category: 'Muscle Recovery',
+    icon: '🥛',
+    evidence: 'high',
+    detail: 'Fast-absorbing complete protein rich in leucine. Ideal post-workout to maximise muscle protein synthesis. Choose grass-fed whey for higher CLA content.',
+    dose: '25–35 g per serving',
+    timing: 'Within 30–60 min post-workout',
+    tags: ['muscle', 'recovery'],
+  },
+  {
+    name: 'Plant Protein Powder',
+    category: 'Muscle Recovery',
+    icon: '🌱',
+    evidence: 'high',
+    detail: 'Pea/rice blend provides a complete amino acid profile comparable to whey. Ideal for vegans and vegetarians. Look for blends with all essential amino acids.',
+    dose: '25–35 g per serving',
+    timing: 'Post-workout or between meals',
+    tags: ['muscle', 'recovery', 'vegan'],
+  },
+  {
+    name: 'Caffeine',
+    category: 'Performance',
+    icon: '☕',
+    evidence: 'high',
+    detail: 'Proven to improve endurance, strength output, focus, and reduce perceived exertion. Tolerance builds with regular use — cycle off periodically for best effect.',
+    dose: '3–6 mg/kg bodyweight',
+    timing: '30–45 min pre-workout',
+    tags: ['muscle', 'endurance', 'fatloss'],
+  },
+  {
+    name: 'Omega-3 (Fish Oil)',
+    category: 'Recovery & Health',
+    icon: '🐟',
+    evidence: 'high',
+    detail: 'EPA and DHA reduce exercise-induced inflammation, support joint health, and may improve muscle protein synthesis when combined with resistance training.',
+    dose: '2–3 g EPA+DHA daily',
+    timing: 'With a meal (fat improves absorption)',
+    tags: ['muscle', 'recovery', 'endurance', 'fatloss'],
+  },
+  {
+    name: 'Algae Omega-3',
+    category: 'Recovery & Health',
+    icon: '🌿',
+    evidence: 'high',
+    detail: 'The vegan source of DHA/EPA — derived directly from microalgae (the original source for fish). Same cardiovascular and anti-inflammatory benefits without animal products.',
+    dose: '400–900 mg DHA+EPA daily',
+    timing: 'With a meal',
+    tags: ['recovery', 'vegan'],
+  },
+  {
+    name: 'Vitamin D3',
+    category: 'General Wellness',
+    icon: '☀️',
+    evidence: 'high',
+    detail: 'Essential for testosterone production, bone density, immune function, and mood. Most people in northern climates are deficient. Pair with K2 for optimal calcium metabolism.',
+    dose: '1000–4000 IU daily',
+    timing: 'With a fatty meal',
+    tags: ['muscle', 'recovery', 'fatloss', 'vegan'],
+  },
+  {
+    name: 'Magnesium Glycinate',
+    category: 'Recovery & Sleep',
+    icon: '🌙',
+    evidence: 'moderate',
+    detail: 'Supports over 300 enzymatic reactions including muscle relaxation, sleep quality, and protein synthesis. Glycinate form has superior bioavailability vs oxide.',
+    dose: '300–400 mg elemental Mg',
+    timing: 'Evening, 30–60 min before bed',
+    tags: ['recovery', 'endurance'],
+  },
+  {
+    name: 'Electrolyte Mix',
+    category: 'Hydration',
+    icon: '💧',
+    evidence: 'high',
+    detail: 'Sodium, potassium, magnesium, and chloride are lost through sweat. Electrolyte supplementation maintains fluid balance and prevents cramps during prolonged exercise.',
+    dose: 'Per product label',
+    timing: 'During or after exercise > 60 min',
+    tags: ['endurance', 'recovery'],
+  },
+  {
+    name: 'Beta-Alanine',
+    category: 'Endurance & Strength',
+    icon: '🏃',
+    evidence: 'high',
+    detail: 'Increases muscle carnosine levels, buffering lactic acid and delaying fatigue. Most effective for high-rep training (8-15 reps) and interval work. Causes harmless tingling (paresthesia).',
+    dose: '3.2–6.4 g daily',
+    timing: 'Split doses — reduce tingling',
+    tags: ['endurance', 'muscle'],
+  },
+  {
+    name: 'Vitamin B12',
+    category: 'Energy & Nerve Function',
+    icon: '⚡',
+    evidence: 'high',
+    detail: 'Critical for red blood cell formation, DNA synthesis, and neurological function. Plant foods contain almost no B12 — supplementation is essential for vegans and beneficial for vegetarians.',
+    dose: '500–1000 mcg daily (cyanocobalamin)',
+    timing: 'Morning with food',
+    tags: ['vegan'],
+  },
+  {
+    name: 'Iron (+ Vitamin C)',
+    category: 'Oxygen Transport',
+    icon: '🩸',
+    evidence: 'high',
+    detail: 'Essential for haemoglobin synthesis and oxygen transport. Plant-based iron (non-haem) is less bioavailable — take with vitamin C to enhance absorption. Get blood work before supplementing.',
+    dose: 'As directed by blood work',
+    timing: 'Away from tea/coffee; with Vitamin C',
+    tags: ['vegan', 'endurance'],
+  },
+  {
+    name: 'Zinc',
+    category: 'Hormones & Immunity',
+    icon: '🛡️',
+    evidence: 'moderate',
+    detail: 'Involved in testosterone production, immune function, and wound healing. Phytates in plant foods reduce zinc absorption — vegetarians and vegans may need 50% more than the RDA.',
+    dose: '15–30 mg zinc bisglycinate',
+    timing: 'Evening, away from calcium',
+    tags: ['vegan', 'muscle'],
+  },
+  {
+    name: 'L-Carnitine',
+    category: 'Fat Metabolism',
+    icon: '🔥',
+    evidence: 'moderate',
+    detail: 'Transports long-chain fatty acids into mitochondria for energy. May aid fat oxidation during exercise when combined with carbohydrates. Evidence strongest in older adults or those deficient.',
+    dose: '2–3 g L-Carnitine-L-Tartrate',
+    timing: '30–60 min pre-workout',
+    tags: ['fatloss'],
+  },
+  {
+    name: 'Berberine',
+    category: 'Blood Sugar',
+    icon: '🌿',
+    evidence: 'moderate',
+    detail: 'Plant compound that activates AMPK, improving insulin sensitivity and glucose uptake into muscles. May support body composition changes when combined with a calorie deficit.',
+    dose: '500 mg, 2–3x daily',
+    timing: 'Before meals',
+    tags: ['fatloss'],
+  },
+];
+
+function renderSupplements(filter) {
+  const grid = document.getElementById('suppsGrid');
+  const visible = filter === 'all' ? SUPPLEMENTS : SUPPLEMENTS.filter(s => s.tags.includes(filter));
+
+  if (visible.length === 0) {
+    grid.innerHTML = '<div class="no-results"><div class="nr-icon">&#128138;</div><p>No supplements found for this filter.</p></div>';
+    return;
+  }
+
+  grid.innerHTML = visible.map(s => `
+    <div class="supp-card">
+      <div class="supp-header">
+        <div class="supp-icon">${s.icon}</div>
+        <div>
+          <div class="supp-name">${s.name}</div>
+          <div class="supp-category">${s.category}</div>
+        </div>
+        <div style="margin-left:auto;">
+          <span class="evidence-badge ${s.evidence}">${s.evidence} evidence</span>
+        </div>
+      </div>
+      <div class="supp-detail">${s.detail}</div>
+      <div class="supp-info-row">
+        <div class="supp-info-item">
+          <div class="sii-label">Dose</div>
+          <div class="sii-value">${s.dose}</div>
+        </div>
+        <div class="supp-info-item">
+          <div class="sii-label">Timing</div>
+          <div class="sii-value">${s.timing}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterSupps(tag, el) {
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  renderSupplements(tag);
+}
+
+// ─────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────
+renderSupplements('all');
+</script>
+</body>
+</html>
